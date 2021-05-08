@@ -120,6 +120,7 @@ type ImageExportParams struct {
 
 	DestinationURI        string `json:"destination_uri,omitempty"`
 	SourceImage           string `json:"source_image,omitempty"`
+	SourceDiskSnapshot    string `json:"source_disk_snapshot,omitempty"`
 	Format                string `json:"format,omitempty"`
 	ComputeServiceAccount string `json:"compute_service_account,omitempty"`
 }

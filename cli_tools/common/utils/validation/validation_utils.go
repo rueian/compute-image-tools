@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
+	"strings"
 
 	"github.com/go-playground/validator/v10"
 
@@ -48,6 +49,21 @@ var (
 func ValidateStringFlagNotEmpty(flagValue string, flagKey string) error {
 	if flagValue == "" {
 		return daisy.Errf(fmt.Sprintf("The flag -%v must be provided", flagKey))
+	}
+	return nil
+}
+
+// ValidateOneOfStringFlagNotEmpty returns error with error message stating one of fields must be provided if
+// value is empty string. Returns nil otherwise.
+func ValidateOneOfStringFlagNotEmpty(flagValues []string, flagKeys []string) error {
+	count := 0
+	for _, v := range flagValues {
+		if v != "" {
+			count++
+		}
+	}
+	if count != 1 {
+		return daisy.Errf(fmt.Sprintf("One of -%v flags should be provided", strings.Join(flagKeys, ",-")))
 	}
 	return nil
 }

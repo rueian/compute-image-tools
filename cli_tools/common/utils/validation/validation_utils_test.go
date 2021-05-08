@@ -22,6 +22,26 @@ import (
 	"github.com/GoogleCloudPlatform/compute-image-tools/daisy"
 )
 
+func TestValidateOneOfStringFlagNotEmpty(t *testing.T) {
+	keys := []string{"source_image", "source_disk_snapshot"}
+	err := ValidateOneOfStringFlagNotEmpty([]string{"anImage", ""}, keys)
+	if err != nil {
+		t.Errorf("error should be nil, but got %v", err)
+	}
+	err = ValidateOneOfStringFlagNotEmpty([]string{"", "aSnapshot"}, keys)
+	if err != nil {
+		t.Errorf("error should be nil, but got %v", err)
+	}
+	err = ValidateOneOfStringFlagNotEmpty([]string{"", ""}, keys)
+	if err == nil {
+		t.Errorf("error should not be nil, but got nil")
+	}
+	err = ValidateOneOfStringFlagNotEmpty([]string{"anImage", "aSnapshot"}, keys)
+	if err == nil {
+		t.Errorf("error should not be nil, but got nil")
+	}
+}
+
 func TestValidateFqdnValidValue(t *testing.T) {
 	err := ValidateFqdn("host.domain", "hostname")
 	if err != nil {
