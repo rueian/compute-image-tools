@@ -75,19 +75,6 @@ func (c *CopyGCSObjects) validate(ctx context.Context, s *Step) DError {
 			if _, err := s.w.StorageClient.Bucket(dBkt).Attrs(ctx); err != nil {
 				return Errf("error reading bucket %q: %v", dBkt, err)
 			}
-
-			// Check if destination bucket is writable.
-			tObj := s.w.StorageClient.Bucket(dBkt).Object(fmt.Sprintf("daisy-validate-%s-%s", s.name, s.w.id))
-			w := tObj.NewWriter(ctx)
-			if _, err := w.Write(nil); err != nil {
-				return newErr("failed to ", err)
-			}
-			if err := w.Close(); err != nil {
-				return Errf("error writing to bucket %q: %v", dBkt, err)
-			}
-			if err := tObj.Delete(ctx); err != nil {
-				return Errf("error deleting file %+v after write validation: %v", tObj, err)
-			}
 			writableBkts.bkts = append(writableBkts.bkts, dBkt)
 		}
 		writableBkts.mx.Unlock()
