@@ -32,6 +32,7 @@ type CopyGCSObjects []CopyGCSObject
 type CopyGCSObject struct {
 	Source, Destination string
 	ACLRules            []*storage.ACLRule `json:",omitempty"`
+	DeleteSource        bool
 }
 
 func (c *CopyGCSObjects) populate(ctx context.Context, s *Step) DError {
@@ -109,7 +110,7 @@ func (c *CopyGCSObjects) validate(ctx context.Context, s *Step) DError {
 	return nil
 }
 
-func recursiveGCS(ctx context.Context, w *Workflow, sBkt, sPrefix, dBkt, dPrefix string, acls []*storage.ACLRule) DError {
+func recursiveGCS(ctx context.Context, w *Workflow, sBkt, sPrefix, dBkt, dPrefix string, acls []*storage.ACLRule, deleteSrc bool) DError {
 	it := w.StorageClient.Bucket(sBkt).Objects(ctx, &storage.Query{Prefix: sPrefix})
 	for objAttr, err := it.Next(); err != iterator.Done; objAttr, err = it.Next() {
 		if err != nil {
@@ -123,6 +124,11 @@ func recursiveGCS(ctx context.Context, w *Workflow, sBkt, sPrefix, dBkt, dPrefix
 		dstPath := w.StorageClient.Bucket(dBkt).Object(o)
 		if _, err := dstPath.CopierFrom(srcPath).Run(ctx); err != nil {
 			return typedErr(apiError, "failed to copy GCS object", err)
+		}
+		if deleteSrc {
+			if err := srcPath.Delete(ctx); err != nil {
+				return typedErr(apiError, "failed to delete GCS object", err)
+			}
 		}
 
 		for _, acl := range acls {
@@ -154,7 +160,7 @@ func (c *CopyGCSObjects) run(ctx context.Context, s *Step) DError {
 			}
 
 			if sObj == "" || strings.HasSuffix(sObj, "/") {
-				if err := recursiveGCS(ctx, s.w, sBkt, sObj, dBkt, dObj, co.ACLRules); err != nil {
+				if err := recursiveGCS(ctx, s.w, sBkt, sObj, dBkt, dObj, co.ACLRules, co.DeleteSource); err != nil {
 					e <- Errf("error copying from %s to %s: %v", co.Source, co.Destination, err)
 					return
 				}
@@ -167,6 +173,13 @@ func (c *CopyGCSObjects) run(ctx context.Context, s *Step) DError {
 				e <- Errf("error copying from %s to %s: %v", co.Source, co.Destination, err)
 				return
 			}
+			if co.DeleteSource {
+				if err := src.Delete(ctx); err != nil {
+					e <- Errf("error deleting from %s after copying to %s: %v", co.Source, co.Destination, err)
+					return
+				}
+			}
+
 			for _, acl := range co.ACLRules {
 				if err := dstPath.ACL().Set(ctx, acl.Entity, acl.Role); err != nil {
 					e <- Errf("error setting ACLRule on %s: %v", co.Destination, err)
